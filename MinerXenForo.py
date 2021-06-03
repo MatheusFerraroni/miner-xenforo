@@ -442,9 +442,6 @@ class Manager(Base):
                     x.join()
                 threads_running = []
 
-            if i>=20:
-                break
-
         for x in threads_running:
             x.join()
 
