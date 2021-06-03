@@ -286,6 +286,9 @@ class Manager(Base):
             if len(html.find_all("a", class_="pageNav-jump--next"))>0:
                 next_page_url = html.find("a", class_="pageNav-jump--next")['href']
                 url = self.base_url+next_page_url
+            else:
+                break
+                
 
 
 
