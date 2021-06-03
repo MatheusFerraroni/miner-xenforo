@@ -10,7 +10,7 @@ import threading
 import random
 import time
 import logging
-
+import urllib.parse
 
 
 def default(o): # to save custom format in json
@@ -204,12 +204,14 @@ class Manager(Base):
             for cat in div_categories:
                 title = cat.find("h2", class_="block-header").a.text
                 href = cat.find("h2", class_="block-header").a['href']
+                href = urllib.parse.urljoin(self.base_url, href)
                 
                 logging.info("Categorie found: {} {}".format(title, href))
                 subs = []
                 for subcat in cat.find_all("div", class_="node"):
                     subtitle = subcat.find('h3', class_="node-title").a.text
                     subhref = subcat.find('h3', class_="node-title").a['href']
+                    subhref = urllib.parse.urljoin(self.base_url, subhref)
                     subs.append({
                         'id': self.get_new_id(),
                         'title_text': subtitle,
@@ -232,7 +234,7 @@ class Manager(Base):
     def get_threads_page(self, cat_id, sub_id, url):
         # TODO: get only missing threads
 
-        initial_url = self.base_url+url
+        initial_url = ""+url
         url = initial_url
 
         res = []
@@ -252,7 +254,8 @@ class Manager(Base):
                 member_href = ""
                 member_name = ""
                 try:
-                    member_href = self.base_url+user_el['href']
+                    member_href = user_el['href']
+                    member_href = urllib.parse.urljoin(self.base_url, member_href)
                     member_name = user_el.text
                 except:
                     pass
@@ -262,7 +265,8 @@ class Manager(Base):
                 tags_thread = []
 
                 title = tags_a[-1].text
-                href = self.base_url+tags_a[-1]['href']
+                href = urllib.parse.urljoin(self.base_url, tags_a[-1]['href'])
+
                 tags_thread = list(map(lambda x: x.text ,tags_a[0:-1]))
 
                 answers = post.parent.parent.find('div', class_="structItem-cell--meta").find_all("dl")[0].find_all("dd")[0].text
@@ -285,10 +289,11 @@ class Manager(Base):
 
             if len(html.find_all("a", class_="pageNav-jump--next"))>0:
                 next_page_url = html.find("a", class_="pageNav-jump--next")['href']
-                url = self.base_url+next_page_url
+                next_page_url = urllib.parse.urljoin(self.base_url, next_page_url)
+
+                url = next_page_url
             else:
                 break
-                
 
 
 
@@ -408,7 +413,8 @@ class Manager(Base):
                     thread['last_update'] = datetime.now()
 
                     if len(html.find_all("a", class_="pageNav-jump--next"))>0:
-                        url = self.base_url+html.find("a", class_="pageNav-jump--next")['href']
+                        url = html.find("a", class_="pageNav-jump--next")['href']
+                        url = urllib.parse.urljoin(self.base_url, url)
                         page += 1
     
                     self.write_json(thread_file, thread)
