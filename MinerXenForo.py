@@ -288,8 +288,6 @@ class Manager(Base):
                 url = self.base_url+next_page_url
 
 
-            else:
-                break
 
         res = {
             'url': initial_url,
@@ -409,8 +407,7 @@ class Manager(Base):
                     if len(html.find_all("a", class_="pageNav-jump--next"))>0:
                         url = self.base_url+html.find("a", class_="pageNav-jump--next")['href']
                         page += 1
-                    else:
-                        break
+    
                     self.write_json(thread_file, thread)
             except Exception as e:
                 thread['error'] = str(e)
