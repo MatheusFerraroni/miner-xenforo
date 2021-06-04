@@ -189,9 +189,9 @@ class Manager(Base):
 
             self.categories = json.loads(dat)
 
-            for cat in self.categories:
-                for subcat in cat['subs']:
-                    subcat['last_update'] = datetime.fromisoformat(subcat['last_update']) # transform iso to datetime type
+            # for cat in self.categories:
+            #     for subcat in cat['subs']:
+            #         subcat['last_update'] = datetime.fromisoformat(subcat['last_update']) # transform iso to datetime type python 3.7+
             logging.info("Categories cache loaded completed")
 
         else: # actually request the page and reload categories file
