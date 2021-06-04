@@ -445,10 +445,13 @@ class Manager(Base):
             threads_running.append(x)
             x.start()
 
-            if len(threads_running)>=self.max_request:
-                for x in threads_running:
-                    x.join()
-                threads_running = []
+
+            while True:
+                threads_running = [thread for thread in threads_running if thread.is_alive()]
+                time.sleep(0.1)
+
+                if len(threads_running)<self.max_request:
+                    break
 
         for x in threads_running:
             x.join()
