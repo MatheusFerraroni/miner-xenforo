@@ -416,6 +416,8 @@ class Manager(Base):
                         url = html.find("a", class_="pageNav-jump--next")['href']
                         url = urllib.parse.urljoin(self.base_url, url)
                         page += 1
+                    else:
+                        break
     
                     self.write_json(thread_file, thread)
             except Exception as e:
