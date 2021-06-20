@@ -506,12 +506,29 @@ class Manager(Base):
     def reload_threads(self):
         logging.info("Reloading threads")
 
+        # Any updates on categories file must be in this function
+
+        threads_running = []
 
         for category in self.categories:
             for sub in category['subs']:
                 logging.info("Reloading threads from: {}".format(sub['title_href']))
-                self.get_threads_page(category['id'], sub['id'], sub['title_href'])
+                # self.get_threads_page(category['id'], sub['id'], sub['title_href'])
 
+                x = threading.Thread(target=self.get_threads_page, args=(category['id'], sub['id'], sub['title_href'],))
+                threads_running.append(x)
+                x.start()
+
+                while True:
+                    threads_running = [thread for thread in threads_running if thread.is_alive()]
+                    time.sleep(0.1)
+
+                    if len(threads_running)<self.max_request:
+                        break
+
+
+        for x in threads_running:
+            x.join()
 
         logging.info("Reloading threads completed")
 
