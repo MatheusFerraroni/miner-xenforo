@@ -1,6 +1,7 @@
 import logging
 import argparse
 import logging
+import time
 
 from MinerXenForo import Manager
 
@@ -8,7 +9,7 @@ from MinerXenForo import Manager
 
 def main(base_url, reload_threads, max_request, cache_pages, summary, reload_posts):
     args = locals()
-    
+
     FORMAT = '%(asctime)s %(levelname)s %(funcName)s %(threadName)s - \t %(message)s'
     logging.basicConfig(filename='log_minerxenforo.log', filemode='a', format=FORMAT, level=logging.INFO)
 
@@ -21,12 +22,12 @@ def main(base_url, reload_threads, max_request, cache_pages, summary, reload_pos
         mng.print_summary()
         print("\n*When the summary is shown nothing else is done.")
         return
+    else:
+        if reload_threads:
+            mng.reload_threads()
 
-    if reload_threads:
-        mng.reload_threads()
-
-    if reload_posts:
-        mng.reload_posts()
+        if reload_posts:
+            mng.reload_posts()
 
 
 if __name__ == "__main__":
@@ -43,6 +44,12 @@ if __name__ == "__main__":
 
     args = vars(ap.parse_args())
 
+    start = time.time()
+
     main(args['url'], args['reload_threads'], args['max_request'], args['cache_pages'], args['summary'], args['reload_posts'])
 
-    logging.info('Stopping')
+    end = time.time()
+    total = end-start
+    print("Total time: {}".format(total))
+
+    logging.info("Stopping. Total time: {}".format(total))
