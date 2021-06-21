@@ -13,6 +13,7 @@ import logging
 import urllib.parse
 import pytz
 import sys
+import time
 
 def default(o): # to save custom format in json
     if type(o) is datetime:
@@ -558,31 +559,79 @@ class Manager(Base):
         with open(dst, "w") as f:
             f.write(json.dumps(content, indent=2, default=default))
 
+    def search_page_message(self, url, guess_page, limit):
+
+        logging.info("Searching where to restart mining url: {} guesspage: {} limit: {}".format(url, guess_page, limit))
+        found = False
+        while guess_page>1:
+            url_with_page = url+"page-{}".format(guess_page)
+            logging.info("Checking url: {}".format(url_with_page))
+
+            html = self.get_html(url_with_page)
+
+            for message in html.find_all('article', class_="message--post"):
+
+                creation_time = message.find('div', class_="message-cell--main").find('header').find('time')['datetime']
+                creation_time = creation_time[0:-2]+":"+creation_time[-2:]
+                creation_time = datetime.fromisoformat(creation_time)
+                if creation_time<limit:
+                    found = True
+                    break
+
+            if found:
+                break
+            guess_page -= 1
+
+        logging.info("Page to restart is: {}".format(guess_page))
+        return guess_page
+
     def requesta(self, thread):
+        thread = thread.copy()
         try:
             logging.info("Requesting posts from {}".format(str(thread)))
 
             thread_file = self.threads_folder+"{}.json".format(thread['id'])
 
+            page = 1
+            url = None
+
+            create_new_thread_file = True
             if os.path.isfile(thread_file): # TODO: check time to update thread here. for now it just don't re-run
                 logging.info("Cache hit thread id {}".format(thread['id']))
-                return
 
 
-            url = thread['href']
-            page = 1
+                with open(thread_file, "r") as f:
+                    thread = json.loads(f.read())
 
-            thread['status'] = "incomplete"
-            thread['started'] = datetime.now()
-            thread['total_pages'] = page # if repeate the variable here the json will look better
-            thread['total_posts'] = 0
-            thread['last_update'] = datetime.now()
+                if len(thread['messages'])>0:
+                    create_new_thread_file = False
+
+                    thread['status'] = "reloading"
+
+                    most_recent_message = thread['messages'][-1]['creation']
+                    most_recent_message = most_recent_message[0:-2]+":"+most_recent_message[-2:]
+                    most_recent_message = datetime.fromisoformat(most_recent_message)
+
+                    page = self.search_page_message(thread['href'], thread['total_pages'], most_recent_message)
+                    ignore_before = most_recent_message
+
+                    url = thread['href']
+                    if page>1:
+                        url = url+"page-{}".format(page)
 
 
-            thread['messages'] = []
+            if create_new_thread_file:
+                page = 1
+                thread['status'] = "incomplete"
+                thread['started'] = datetime.now()
+                thread['total_pages'] = page # if repeate the variable here the json will look better
+                thread['total_posts'] = 0
+                thread['messages'] = []
+                thread['last_update'] = datetime.now()
+                url = thread['href']
 
-
-            self.write_json(thread_file, thread)
+                ignore_before = datetime.min.replace(tzinfo=pytz.timezone('America/Sao_Paulo'))
+                self.write_json(thread_file, thread)
 
             try:
                 while True:
@@ -602,6 +651,15 @@ class Manager(Base):
                             user_href = ''
 
                         creation_time = message.find('div', class_="message-cell--main").find('header').find('time')['datetime']
+
+
+                        creation_time_obj = creation_time[0:-2]+":"+creation_time[-2:]
+                        creation_time_obj = datetime.fromisoformat(creation_time_obj)
+
+                        if creation_time_obj<=ignore_before:
+                            continue
+
+
 
                         message = str(message.find('div', class_="message-cell--main").find('article', class_='message-body').find('div', class_='bbWrapper'))
 
@@ -626,13 +684,11 @@ class Manager(Base):
                     else:
                         thread['status'] = "complete"
                         break
-    
-                    self.write_json(thread_file, thread)
+
             except Exception as e:
                 thread['error'] = str(e)
-                thread['messages'] = [] # we dont need to see all messages so far
-                logging.error("ERROREXCEPTION (1) {} {} {}".format(str(thread), str(e), url))
-                pass
+                thread['status'] = "error"
+                logging.error("ERROREXCEPTION (1) {} {} {}".format(str(thread['id']), str(e), url))
 
 
             self.write_json(thread_file, thread)
@@ -647,7 +703,7 @@ class Manager(Base):
 
         threads_running = []
         for i in range(len(self.threads)):
-            
+
             t = self.threads[i]
 
             x = threading.Thread(target=self.requesta, args=(t,))
