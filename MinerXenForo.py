@@ -469,7 +469,7 @@ class Manager(Base):
                 if not ok:
                     thread_found['id'] = self.get_new_id()
 
-                    res['total_threads'] += 1 # TODO validar se é thread nova
+                    res['total_threads'] += 1 # TODO validate if this is a new thread
                     res['threads'].append(thread_found)
 
 
@@ -596,7 +596,7 @@ class Manager(Base):
             url = None
 
             create_new_thread_file = True
-            if os.path.isfile(thread_file): # TODO: check time to update thread here. for now it just don't re-run
+            if os.path.isfile(thread_file): # TODO We are researching every thread. We may check the interval between the last two messages
                 logging.info("Cache hit thread id {}".format(thread['id']))
 
 
