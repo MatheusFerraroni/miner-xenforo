@@ -14,6 +14,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as path_effects
 
+import nltk
+
 class Cleaner:
 
     def __init__(self, url, min_l, max_l, conversations, cache, threads):
@@ -24,6 +26,8 @@ class Cleaner:
         self.conversations = conversations
         self.cache = cache
         self.max_threads = threads
+        self.tokenizer = nltk.tokenize.TweetTokenizer()
+        self.resave_every = 1000 # resave infos to cache
 
         # folders to work
         self.config_folder     = "./config/{}/".format(self.domain) # must exist
@@ -32,6 +36,8 @@ class Cleaner:
         self.plots_folder     = self.config_folder+"plots/" # must be created
         self.clear_cache_file  = self.config_folder+"clear_cache.csv"
 
+        # locks
+        self.lock_alter_infos = threading.Lock()
 
         self.create_configs()
 
@@ -73,6 +79,7 @@ class Cleaner:
             self.infos = pd.read_csv(self.clear_cache_file, sep="\t")
         else:
             files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(self.threads_folder) for f in filenames if os.path.splitext(f)[1] == '.json']
+            files = files[0:100]
 
             dats = []
             ids = []
@@ -108,11 +115,14 @@ class Cleaner:
                 'last_update': updates,
                 })
 
-            if self.cache:
-                with open(self.clear_cache_file,"w") as f:
-                    f.write("id\tcategory\tsubcategory\ttotal_messages\tdate_thread\tlast_update\n")
-                    for d in dats:
-                        f.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(d["id"], d["category"], d["subcategory"], d["total_messages"], d["date_thread"], d["last_update"]))
+
+            self.save_infos()
+
+            # if self.cache:
+            #     with open(self.clear_cache_file,"w") as f:
+            #         f.write("id\tcategory\tsubcategory\ttotal_messages\tdate_thread\tlast_update\n")
+            #         for d in dats:
+            #             f.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(d["id"], d["category"], d["subcategory"], d["total_messages"], d["date_thread"], d["last_update"]))
 
     def limpar_post(self, post_bs):
         if type(post_bs)==str:
@@ -346,8 +356,10 @@ class Cleaner:
             idd = "#{}".format(dat['messages'][i]['official_id'])
             index_message[idd] = i
 
+        tokens_lens = []
         for i in range(0, len(dat['messages']), 1):
             dat['messages'][i]['message_clear'] = self.limpar_post(dat['messages'][i]['message'])
+            tokens_lens.append(len(self.tokenizer.tokenize(dat['messages'][i]['message_clear'])))
 
         txt = ""
         for i in range(0, len(dat['messages']), 1):
@@ -359,6 +371,7 @@ class Cleaner:
             f.write(txt)
 
 
+        conversations_lens = []
         if self.conversations:
             conversations = []
 
@@ -376,7 +389,7 @@ class Cleaner:
 
                 conversations += convs
 
-
+            conversations_lens = [ len(x) for x in conversations]
             for i in range(len(conversations)):
                 cs = conversations[i]
                 txt = ""
@@ -389,6 +402,29 @@ class Cleaner:
 
                 with open(self.result_folder+"{}_{}.txt".format(th['id'], i), "w") as f:
                     f.write(txt)
+
+        self.set_infos(th, "tokens_lens", tokens_lens)
+        self.set_infos(th, "conversations_lens", conversations_lens)
+
+
+    def set_infos(self, th, key, value):
+        self.lock_alter_infos.acquire()
+
+        try:
+            if not key in self.infos.columns:
+                self.infos[key] = [None]*len(self.infos)
+
+            self.infos.loc[self.infos['id']==th['id'], key] = json.dumps(value)
+
+        except Exception as e:
+            print(e)
+
+        self.lock_alter_infos.release()
+
+    def save_infos(self):
+        self.lock_alter_infos.acquire()
+        self.infos.to_csv(self.clear_cache_file, sep='\t', index=False)
+        self.lock_alter_infos.release()
 
     def process(self):
 
@@ -410,8 +446,14 @@ class Cleaner:
                 if len(threads_running)<self.max_threads:
                     break
 
+            if i%self.resave_every==0:
+                self.save_infos()
+
         for x in threads_running:
             x.join()
+
+
+        self.save_infos()
 
     def plots(self):
 
