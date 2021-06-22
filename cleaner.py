@@ -79,7 +79,6 @@ class Cleaner:
             self.infos = pd.read_csv(self.clear_cache_file, sep="\t")
         else:
             files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(self.threads_folder) for f in filenames if os.path.splitext(f)[1] == '.json']
-            files = files[0:100]
 
             dats = []
             ids = []
