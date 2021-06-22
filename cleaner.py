@@ -39,6 +39,10 @@ class Cleaner:
         # locks
         self.lock_alter_infos = threading.Lock()
 
+
+        # extras
+        self.punctuation = ['!', '"', '#', '$', '%', '&', "'", '(', ')', '*', '+', ',', '-', '.', ':', ';', '=', '?', '@', '[', '\\', ']', '^', '_', '`', '{', '|', '}', '~']
+
         self.create_configs()
 
     def create_configs(self):
@@ -358,7 +362,12 @@ class Cleaner:
         tokens_lens = []
         for i in range(0, len(dat['messages']), 1):
             dat['messages'][i]['message_clear'] = self.limpar_post(dat['messages'][i]['message'])
-            tokens_lens.append(len(self.tokenizer.tokenize(dat['messages'][i]['message_clear'])))
+
+            txt = dat['messages'][i]['message_clear']+""
+            for p in self.punctuation:
+                txt = txt.replace(p, " ")
+
+            tokens_lens.append(len(self.tokenizer.tokenize(txt)))
 
         txt = ""
         for i in range(0, len(dat['messages']), 1):
