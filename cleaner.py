@@ -305,7 +305,7 @@ class Cleaner:
                     check_repeated = post
                     can_continue = True
                     while check_repeated!=None:
-                        if c['to']=="#"+check_repeated['official_id']:
+                        if c['to']=="#"+check_repeated['official_id']: # this should be replaced to just check if the next message was posted after
                             can_continue = False
                             break
                         check_repeated = check_repeated['parent']
@@ -347,73 +347,77 @@ class Cleaner:
         return s.replace("\r", " ").replace("\n", " ")
 
     def do_process(self, th):
-        dat = None
-        with open(self.threads_folder+"{}.json".format(th['id']), 'r') as f:
-            dat = f.read()
-            f.close()
-            dat = json.loads(dat)
+        try:
+            dat = None
+            with open(self.threads_folder+"{}.json".format(th['id']), 'r') as f:
+                dat = f.read()
+                f.close()
+                dat = json.loads(dat)
 
-        index_message = {}
+            index_message = {}
 
-        for i in range(len(dat['messages'])):
-            idd = "#{}".format(dat['messages'][i]['official_id'])
-            index_message[idd] = i
+            for i in range(len(dat['messages'])):
+                idd = "#{}".format(dat['messages'][i]['official_id'])
+                index_message[idd] = i
 
-        tokens_lens = []
-        for i in range(0, len(dat['messages']), 1):
-            dat['messages'][i]['message_clear'] = self.limpar_post(dat['messages'][i]['message'])
+            tokens_lens = []
+            for i in range(0, len(dat['messages']), 1):
+                dat['messages'][i]['message_clear'] = self.limpar_post(dat['messages'][i]['message'])
 
-            txt = dat['messages'][i]['message_clear']+""
-            for p in self.punctuation:
-                txt = txt.replace(p, " ")
+                txt = dat['messages'][i]['message_clear']+""
+                for p in self.punctuation:
+                    txt = txt.replace(p, " ")
 
-            tokens_lens.append(len(self.tokenizer.tokenize(txt)))
+                tokens_lens.append(len(self.tokenizer.tokenize(txt)))
 
-        txt = ""
-        for i in range(0, len(dat['messages']), 1):
-            if i>0:
-                txt += "\n"
-            txt += "{}\t{}\t{}".format(dat['messages'][i]['creation'], dat['messages'][i]['user_href'], dat['messages'][i]['message_clear'])
+            txt = ""
+            for i in range(0, len(dat['messages']), 1):
+                if i>0:
+                    txt += "\n"
+                txt += "{}\t{}\t{}".format(dat['messages'][i]['creation'], dat['messages'][i]['user_href'], dat['messages'][i]['message_clear'])
 
-        with open(self.result_folder+"{}.txt".format(th['id']), "w") as f:
-            f.write(txt)
+            with open(self.result_folder+"{}.txt".format(th['id']), "w") as f:
+                f.write(txt)
 
 
-        conversations_lens = []
-        if self.conversations:
-            conversations = []
+            conversations_lens = []
+            if self.conversations:
+                conversations = []
 
-            for i in range(len(dat['messages'])-1, -1, -1):
-                post = dat['messages'][i]
+                for i in range(len(dat['messages'])-1, -1, -1):
+                    post = dat['messages'][i]
 
-                convs = self.monta_conversas(post, dat, index_message) # identify who this post is replying and which part
+                    convs = self.monta_conversas(post, dat, index_message) # identify who this post is replying and which part
 
-                for conv in convs:
-                    for m in conv:
-                        try:
-                            del( index_message[m['official_id']] )
-                        except:
-                            continue
+                    for conv in convs:
+                        for m in conv:
+                            try:
+                                del( index_message[m['official_id']] )
+                            except:
+                                continue
 
-                conversations += convs
+                    conversations += convs
 
-            conversations_lens = [ len(x) for x in conversations]
-            for i in range(len(conversations)):
-                cs = conversations[i]
-                txt = ""
-                for ii in range(len(cs)):
+                conversations_lens = [ len(x) for x in conversations]
+                for i in range(len(conversations)):
+                    cs = conversations[i]
+                    txt = ""
+                    for ii in range(len(cs)):
 
-                    if ii>0:
-                        txt += "\n"
-                    c = cs[ii]
-                    txt += "{}\t{}\t{}".format(c['creation'],c['user_href'], c['message_clear'])
+                        if ii>0:
+                            txt += "\n"
+                        c = cs[ii]
+                        txt += "{}\t{}\t{}".format(c['creation'],c['user_href'], c['message_clear'])
 
-                with open(self.result_folder+"{}_{}.txt".format(th['id'], i), "w") as f:
-                    f.write(txt)
+                    with open(self.result_folder+"{}_{}.txt".format(th['id'], i), "w") as f:
+                        f.write(txt)
 
-        self.set_infos(th, "tokens_lens", tokens_lens)
-        self.set_infos(th, "conversations_lens", conversations_lens)
-
+            self.set_infos(th, "tokens_lens", tokens_lens)
+            self.set_infos(th, "conversations_lens", conversations_lens)
+        except Exception as e:
+            print("\n\n")
+            print(e)
+            print("\n\n")
 
     def set_infos(self, th, key, value):
         self.lock_alter_infos.acquire()
@@ -439,8 +443,10 @@ class Cleaner:
         sub = self.infos[self.infos["total_messages"] > self.min]
         sub = sub[sub["total_messages"] <= self.max]
 
+
         threads_running = []
         for i in range(len(sub)):
+            print("{}/{} = {}%".format(i, len(sub), round((i/float(len(sub)))*100,1) ), end='\r')
             th = sub.iloc[i]
 
             x = threading.Thread(target=self.do_process, args=(th,))

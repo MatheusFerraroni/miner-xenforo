@@ -315,7 +315,7 @@ class Manager(Base):
 
 
 
-        logging.info("Categorie loaded completed")
+        logging.info("Categories loaded completed")
 
     def get_threads_page(self, cat_id, sub_id, url):
         logging.info("getthreadspage Starting: {} {} {}".format(cat_id, sub_id, url))
