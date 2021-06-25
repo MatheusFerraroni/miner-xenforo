@@ -333,14 +333,21 @@ class Manager(Base):
 
 
         res = {}
+        create_file = True
         if os.path.isfile(dst_file):
-            logging.info("getthreadspage file exist!")
-            with open(dst_file, "r") as f:
-                res = json.loads(f.read())
+            try:
+                logging.info("getthreadspage file exist! {}".format(dst_file))
+                with open(dst_file, "r") as f:
+                    res = json.loads(f.read())
 
-            page = res['total_pages']
-            total_threads = res['total_threads']
-        else:
+                page = res['total_pages']
+                total_threads = res['total_threads']
+                create_file = False
+            except:
+                logging.info("getthreadspage fail to load! We will create a new one {}".format(dst_file))
+
+
+        if create_file:
             logging.info("Creating category file: {}".format(dst_file))
             res = {
                 'url': initial_url,

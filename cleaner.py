@@ -118,14 +118,7 @@ class Cleaner:
                 'last_update': updates,
                 })
 
-
             self.save_infos()
-
-            # if self.cache:
-            #     with open(self.clear_cache_file,"w") as f:
-            #         f.write("id\tcategory\tsubcategory\ttotal_messages\tdate_thread\tlast_update\n")
-            #         for d in dats:
-            #             f.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(d["id"], d["category"], d["subcategory"], d["total_messages"], d["date_thread"], d["last_update"]))
 
     def limpar_post(self, post_bs):
         if type(post_bs)==str:
@@ -276,25 +269,21 @@ class Cleaner:
                 insert.append(tag)
             a['contents'] = insert
 
-        
         start = soup.new_tag('div')
         for tag in free_writing:
             start.append(tag)
-        
-        
+
+
         return start, answering
 
     def monta_conversas(self, orig, dat, index_message):
-        
         new_orig = orig.copy()
         new_orig['parent'] = None
         to_identify = [new_orig]
         results = []
-        
         ignore_ids = []
-        
+
         while len(to_identify)>0:
-            
             post = to_identify.pop()
 
             s, cs = self.identify_conversations(post['message'])
@@ -309,7 +298,7 @@ class Cleaner:
                             can_continue = False
                             break
                         check_repeated = check_repeated['parent']
-                    
+
                     if not can_continue:
                         continue
 
@@ -327,18 +316,17 @@ class Cleaner:
                 while post['parent']!=None:
                     idx = index_message["#"+post['official_id']]
                     idx = dat['messages'][idx]
-                    
+
                     r.append(idx)
-                    
+
                     post = post['parent']
-                    
+
                 idx = index_message["#"+post['official_id']]
                 idx = dat['messages'][idx]
                 r.append(idx)
                 r = r[::-1]
                 if len(r)>1:
                     results.append(r)
-                
 
         return results
 
@@ -443,10 +431,9 @@ class Cleaner:
         sub = self.infos[self.infos["total_messages"] > self.min]
         sub = sub[sub["total_messages"] <= self.max]
 
-
         threads_running = []
         for i in range(len(sub)):
-            print("{}/{} = {}%".format(i, len(sub), round((i/float(len(sub)))*100,1) ), end='\r')
+            print("{}/{} = {}%".format(i, len(sub), round((i/float(len(sub)))*100,1) ) )#, end='\r')
             th = sub.iloc[i]
 
             x = threading.Thread(target=self.do_process, args=(th,))
@@ -455,10 +442,10 @@ class Cleaner:
 
             while True:
                 threads_running = [thread for thread in threads_running if thread.is_alive()]
-                time.sleep(0.01)
 
                 if len(threads_running)<self.max_threads:
                     break
+                time.sleep(0.01)
 
             if i%self.resave_every==0:
                 self.save_infos()
