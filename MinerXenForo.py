@@ -693,6 +693,7 @@ class Manager(Base):
                         break
 
             except Exception as e:
+                print(e)
                 thread['error'] = str(e)
                 thread['status'] = "error"
                 logging.error("ERROREXCEPTION (1) {} {} {}".format(str(thread['id']), str(e), url))
@@ -700,6 +701,7 @@ class Manager(Base):
 
             self.write_json(thread_file, thread)
         except Exception as e:
+            print(e)
             logging.error("ERROREXCEPTION (2) {} {}".format(str(thread), str(e)))
 
 
