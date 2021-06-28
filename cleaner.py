@@ -275,7 +275,7 @@ class Cleaner:
 
         return start, answering
 
-    def monta_conversas(self, orig, dat, index_message):
+    def mount_conversation(self, orig, dat, index_message):
         new_orig = orig.copy()
         new_orig['parent'] = None
         to_identify = [new_orig]
@@ -371,12 +371,11 @@ class Cleaner:
             conversations_lens = []
             counter_conversation = -1
             if self.conversations:
-                # conversations = []
 
                 for i in range(len(dat['messages'])-1, -1, -1):
                     post = dat['messages'][i]
 
-                    convs = self.monta_conversas(post, dat, index_message) # identify who this post is replying and which part
+                    convs = self.mount_conversation(post, dat, index_message) # identify who this post is replying and which part
 
                     for c in convs:
                         conversations_lens.append(len(c))
@@ -399,8 +398,6 @@ class Cleaner:
                                 del( index_message[m['official_id']] )
                             except:
                                 continue
-
-                    # conversations += convs
 
             self.set_infos(th, "tokens_lens", tokens_lens)
             self.set_infos(th, "conversations_lens", conversations_lens)
@@ -433,36 +430,29 @@ class Cleaner:
         sub = self.infos[self.infos["total_messages"] > self.min]
         sub = sub[sub["total_messages"] <= self.max]
 
-        self.do_process(sub.iloc[1])
+        threads_running = []
+        for i in range(len(sub)):
+            print("{}/{} = {}%".format(i, len(sub), round((i/float(len(sub)))*100,1) ) )#, end='\r')
+            th = sub.iloc[i]
 
+            x = threading.Thread(target=self.do_process, args=(th,))
+            threads_running.append(x)
+            x.start()
 
-        save_every = len(sub)//200 # to save every 0.5%
+            while True:
+                threads_running = [thread for thread in threads_running if thread.is_alive()]
 
+                if len(threads_running)<self.max_threads:
+                    break
+                time.sleep(0.01)
 
-        # threads_running = []
-        # for i in range(len(sub)):
-        #     print("{}/{} = {}%".format(i, len(sub), round((i/float(len(sub)))*100,1) ) )#, end='\r')
-        #     th = sub.iloc[i]
+            if i%save_every==0:
+                self.save_infos()
 
-        #     x = threading.Thread(target=self.do_process, args=(th,))
-        #     threads_running.append(x)
-        #     x.start()
+        for x in threads_running:
+            x.join()
 
-        #     while True:
-        #         threads_running = [thread for thread in threads_running if thread.is_alive()]
-
-        #         if len(threads_running)<self.max_threads:
-        #             break
-        #         time.sleep(0.01)
-
-        #     if i%save_every==0:
-        #         self.save_infos()
-
-        # for x in threads_running:
-        #     x.join()
-
-
-        # self.save_infos()
+        self.save_infos()
 
     def plots(self):
 
