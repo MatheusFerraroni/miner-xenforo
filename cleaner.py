@@ -27,7 +27,6 @@ class Cleaner:
         self.cache = cache
         self.max_threads = threads
         self.tokenizer = nltk.tokenize.TweetTokenizer()
-        self.resave_every = 1000 # resave infos to cache
 
         # folders to work
         self.config_folder     = "./config/{}/".format(self.domain) # must exist
@@ -358,24 +357,41 @@ class Cleaner:
 
                 tokens_lens.append(len(self.tokenizer.tokenize(txt)))
 
-            txt = ""
-            for i in range(0, len(dat['messages']), 1):
-                if i>0:
-                    txt += "\n"
-                txt += "{}\t{}\t{}".format(dat['messages'][i]['creation'], dat['messages'][i]['user_href'], dat['messages'][i]['message_clear'])
 
-            with open(self.result_folder+"{}.txt".format(th['id']), "w") as f:
-                f.write(txt)
+
+            with open(self.result_folder+"{}.txt".format(th['id']), 'w') as f:
+                for i in range(0, len(dat['messages']), 1):
+                    txt = ''
+                    if i>0:
+                        txt += "\n"
+                    txt += "{}\t{}\t{}".format(dat['messages'][i]['creation'], dat['messages'][i]['user_href'], dat['messages'][i]['message_clear'])
+                    f.write(txt)
 
 
             conversations_lens = []
+            counter_conversation = -1
             if self.conversations:
-                conversations = []
+                # conversations = []
 
                 for i in range(len(dat['messages'])-1, -1, -1):
                     post = dat['messages'][i]
 
                     convs = self.monta_conversas(post, dat, index_message) # identify who this post is replying and which part
+
+                    for c in convs:
+                        conversations_lens.append(len(c))
+                        counter_conversation += 1
+
+                        with open(self.result_folder+"{}_{}.txt".format(th['id'], counter_conversation), 'w') as f:
+                            txt = ''
+                            for ii in range(len(c)):
+                                if ii>0:
+                                    txt += "\n"
+                                cc = c[ii]
+                                txt += "{}\t{}\t{}".format(cc['creation'], cc['user_href'], cc['message_clear'])
+
+                            f.write(txt)
+
 
                     for conv in convs:
                         for m in conv:
@@ -384,21 +400,7 @@ class Cleaner:
                             except:
                                 continue
 
-                    conversations += convs
-
-                conversations_lens = [ len(x) for x in conversations]
-                for i in range(len(conversations)):
-                    cs = conversations[i]
-                    txt = ""
-                    for ii in range(len(cs)):
-
-                        if ii>0:
-                            txt += "\n"
-                        c = cs[ii]
-                        txt += "{}\t{}\t{}".format(c['creation'],c['user_href'], c['message_clear'])
-
-                    with open(self.result_folder+"{}_{}.txt".format(th['id'], i), "w") as f:
-                        f.write(txt)
+                    # conversations += convs
 
             self.set_infos(th, "tokens_lens", tokens_lens)
             self.set_infos(th, "conversations_lens", conversations_lens)
@@ -431,30 +433,36 @@ class Cleaner:
         sub = self.infos[self.infos["total_messages"] > self.min]
         sub = sub[sub["total_messages"] <= self.max]
 
-        threads_running = []
-        for i in range(len(sub)):
-            print("{}/{} = {}%".format(i, len(sub), round((i/float(len(sub)))*100,1) ) )#, end='\r')
-            th = sub.iloc[i]
-
-            x = threading.Thread(target=self.do_process, args=(th,))
-            threads_running.append(x)
-            x.start()
-
-            while True:
-                threads_running = [thread for thread in threads_running if thread.is_alive()]
-
-                if len(threads_running)<self.max_threads:
-                    break
-                time.sleep(0.01)
-
-            if i%self.resave_every==0:
-                self.save_infos()
-
-        for x in threads_running:
-            x.join()
+        self.do_process(sub.iloc[1])
 
 
-        self.save_infos()
+        save_every = len(sub)//200 # to save every 0.5%
+
+
+        # threads_running = []
+        # for i in range(len(sub)):
+        #     print("{}/{} = {}%".format(i, len(sub), round((i/float(len(sub)))*100,1) ) )#, end='\r')
+        #     th = sub.iloc[i]
+
+        #     x = threading.Thread(target=self.do_process, args=(th,))
+        #     threads_running.append(x)
+        #     x.start()
+
+        #     while True:
+        #         threads_running = [thread for thread in threads_running if thread.is_alive()]
+
+        #         if len(threads_running)<self.max_threads:
+        #             break
+        #         time.sleep(0.01)
+
+        #     if i%save_every==0:
+        #         self.save_infos()
+
+        # for x in threads_running:
+        #     x.join()
+
+
+        # self.save_infos()
 
     def plots(self):
 
