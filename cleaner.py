@@ -430,6 +430,8 @@ class Cleaner:
         sub = self.infos[self.infos["total_messages"] > self.min]
         sub = sub[sub["total_messages"] <= self.max]
 
+        save_every = len(sub)//200 # to save every 0.5%
+
         threads_running = []
         for i in range(len(sub)):
             print("{}/{} = {}%".format(i, len(sub), round((i/float(len(sub)))*100,1) ) )#, end='\r')
