@@ -431,6 +431,7 @@ class Cleaner:
         sub = sub[sub["total_messages"] <= self.max]
 
         save_every = len(sub)//200 # to save every 0.5%
+        save_every = max(1, save_every)
 
         threads_running = []
         for i in range(len(sub)):
