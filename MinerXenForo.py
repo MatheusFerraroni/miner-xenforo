@@ -133,8 +133,6 @@ class Manager(Base):
         self.lock_new_id.release()
         return v
 
-
-
     def create_configs(self):
         logging.info("Creating configs")
 
@@ -179,7 +177,6 @@ class Manager(Base):
 
 
         self.get_categories() # auto load das categorias
-
 
     def get_categories(self):
         logging.info("Getting categories")
@@ -500,7 +497,6 @@ class Manager(Base):
 
         return True
 
-
     def print_summary(self):
         self.load_threads()
         logging.info('Showing summary')
@@ -509,7 +505,6 @@ class Manager(Base):
         print("Amt. Categories:\t{}".format(len(self.categories)))
         print("Amt. SubCategories:\t{}".format(sum([len(x['subs']) for x in self.categories])))
         print("Amt. Threads:\t\t{}".format(len(self.threads)))
-
 
     def reload_threads(self):
         logging.info("Reloading threads")
@@ -540,7 +535,6 @@ class Manager(Base):
 
         logging.info("Reloading threads completed")
 
-
     def load_threads(self):
         logging.info("Reading threads to memmory")
 
@@ -560,7 +554,6 @@ class Manager(Base):
             self.threads_href[t['href']] = self.threads[i]
 
         logging.info("Reading threads to memmory completed. Total: {}".format(len(self.threads)))
-
 
     def write_json(self, dst, content):
         with open(dst, "w") as f:
@@ -640,6 +633,10 @@ class Manager(Base):
                 ignore_before = datetime.min.replace(tzinfo=pytz.timezone('America/Sao_Paulo'))
                 self.write_json(thread_file, thread)
 
+            thread = None
+            posts_to_add = []
+            counter_page_to_save = 0
+            save_every_x_page = 40
             try:
                 while True:
                     html = self.get_html(url)
@@ -671,7 +668,7 @@ class Manager(Base):
                         message = str(message.find('div', class_="message-cell--main").find('article', class_='message-body').find('div', class_='bbWrapper'))
 
 
-                        thread['messages'].append({
+                        posts_to_add.append({
                             'official_id': official_id,
                             'user_name': user_name,
                             'user_href': user_href,
@@ -679,10 +676,23 @@ class Manager(Base):
                             'message': message,
                         })
 
+                    counter_page_to_save += 1
 
-                    thread['total_pages'] = page
-                    thread['total_posts'] = len(thread['messages'])
-                    thread['last_update'] = datetime.now()
+                    if counter_page_to_save%save_every_x_page==0:
+                        counter_page_to_save = 0
+                        with open(thread_file, 'r') as f:
+                            thread = json.loads(f.read())
+
+                        thread['total_pages'] = page
+                        thread['total_posts'] = len(thread['messages'])
+                        thread['last_update'] = datetime.now()
+
+                        thread['messages']+= posts_to_add
+                        posts_to_add = []
+
+                        self.write_json(thread_file, thread)
+                        thread = None
+
 
                     if len(html.find_all("a", class_="pageNav-jump--next"))>0:
                         url = html.find("a", class_="pageNav-jump--next")['href']
@@ -692,6 +702,8 @@ class Manager(Base):
                         thread['status'] = "complete"
                         break
 
+
+
             except Exception as e:
                 print(e)
                 thread['error'] = str(e)
@@ -699,7 +711,19 @@ class Manager(Base):
                 logging.error("ERROREXCEPTION (1) {} {} {}".format(str(thread['id']), str(e), url))
 
 
+
+            with open(thread_file, 'r') as f:
+                thread = json.loads(f.read())
+
+            thread['total_pages'] = page
+            thread['total_posts'] = len(thread['messages'])
+            thread['last_update'] = datetime.now()
+
+            thread['messages']+= posts_to_add
+            posts_to_add = []
+
             self.write_json(thread_file, thread)
+            thread = None
         except Exception as e:
             print(e)
             logging.error("ERROREXCEPTION (2) {} {}".format(str(thread), str(e)))
