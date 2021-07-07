@@ -133,3 +133,5 @@ config/
 
 exec.sh
 *.ipynb
+
+.vs

@@ -18,7 +18,7 @@ import nltk
 
 class Cleaner:
 
-    def __init__(self, url, min_l, max_l, conversations, cache, threads):
+    def __init__(self, url, min_l, max_l, conversations, cache, threads, only_empty_msgs):
         self.base_url = url
         self.domain = urlparse(self.base_url).netloc
         self.min = min_l
@@ -27,6 +27,9 @@ class Cleaner:
         self.cache = cache
         self.max_threads = threads
         self.tokenizer = nltk.tokenize.TweetTokenizer()
+        self.only_empty_msgs = only_empty_msgs
+
+        self.cache_identify_conversations = {}
 
         # folders to work
         self.config_folder     = "./config/{}/".format(self.domain) # must exist
@@ -78,9 +81,22 @@ class Cleaner:
 
     def load_infos(self):
 
-        if self.cache and os.path.isfile(self.clear_cache_file):
-            self.infos = pd.read_csv(self.clear_cache_file, sep="\t")
-        else:
+        print("Using cache: {}".format(self.cache))
+
+        load_all = True
+        if self.cache:
+            print("Cache file: {}".format(self.clear_cache_file))
+            print("Cache file found: {}".format(os.path.isfile(self.clear_cache_file)))
+            if os.path.isfile(self.clear_cache_file):
+                print("Loading cache files")
+                self.infos = pd.read_csv(self.clear_cache_file, sep="\t")
+                print("Cache files loaded")
+                load_all = False
+        
+        
+        
+        if load_all:
+            print("Reading threads from {}".format(self.threads_folder))
             files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(self.threads_folder) for f in filenames if os.path.splitext(f)[1] == '.json']
 
             dats = []
@@ -219,61 +235,65 @@ class Cleaner:
         res = re.sub(r' +', ' ', res)
         return res
 
-    def identify_conversations(self, msg):
-        msg = BeautifulSoup(msg, features="lxml")
+    def identify_conversations(self, msg, msg_id):
+        try:
+            return self.cache_identify_conversations[msg_id] # cache mechanism
+        except:
+            
+            msg = BeautifulSoup(msg, features="lxml")
 
-        quotes = msg.find_all("blockquote")
+            quotes = msg.find_all("blockquote")
 
-        soup = BeautifulSoup(features="lxml")
-        for quote in quotes:
-            title = quote.find("div", class_="bbCodeBlock-title")
-            if title!=None:
-                try:
-                    answering = title.a['data-content-selector']
-                except: # member is banned
-                    continue
-                insert = self.tags['answering'].format(answering)
+            soup = BeautifulSoup(features="lxml")
+            for quote in quotes:
+                title = quote.find("div", class_="bbCodeBlock-title")
+                if title!=None:
+                    try:
+                        answering = title.a['data-content-selector']
+                    except: # member is banned
+                        continue
+                    insert = self.tags['answering'].format(answering)
 
-                insert = soup.new_tag('answering')
-                insert.string = answering
-                quote.insert_after(insert)
-                quote.extract()
+                    insert = soup.new_tag('answering')
+                    insert.string = answering
+                    quote.insert_after(insert)
+                    quote.extract()
 
 
-        contents = msg.find('div', class_="bbWrapper").contents
+            contents = msg.find('div', class_="bbWrapper").contents
 
-        free_writing = []
-        answering = []
+            free_writing = []
+            answering = []
 
-        type_writing = None
-        for i in range((len(contents))):
+            type_writing = None
+            for i in range((len(contents))):
 
-            if(contents[i].name=='answering'):
+                if(contents[i].name=='answering'):
+                    if type_writing == None:
+                        type_writing = 0
+                    else:
+                        type_writing += 1
+
                 if type_writing == None:
-                    type_writing = 0
+                    free_writing.append(contents[i])
                 else:
-                    type_writing += 1
+                    if len(answering)!=type_writing:
+                        answering[type_writing]['contents'].append(contents[i])
+                    else:
+                        answering.append({'contents':[], 'to': contents[i].string})
 
-            if type_writing == None:
-                free_writing.append(contents[i])
-            else:
-                if len(answering)!=type_writing:
-                    answering[type_writing]['contents'].append(contents[i])
-                else:
-                    answering.append({'contents':[], 'to': contents[i].string})
+            for a in answering:
+                insert = soup.new_tag('div')
+                for tag in a['contents']:
+                    insert.append(tag)
+                a['contents'] = insert
 
-        for a in answering:
-            insert = soup.new_tag('div')
-            for tag in a['contents']:
-                insert.append(tag)
-            a['contents'] = insert
+            start = soup.new_tag('div')
+            for tag in free_writing:
+                start.append(tag)
 
-        start = soup.new_tag('div')
-        for tag in free_writing:
-            start.append(tag)
-
-
-        return start, answering
+            self.cache_identify_conversations[msg_id] = (start, answering)
+            return start, answering
 
     def mount_conversation(self, orig, dat, index_message):
         new_orig = orig.copy()
@@ -285,7 +305,7 @@ class Cleaner:
         while len(to_identify)>0:
             post = to_identify.pop()
 
-            s, cs = self.identify_conversations(post['message'])
+            s, cs = self.identify_conversations(post['message'], post['official_id'])
 
 
             for c in cs:
@@ -430,6 +450,9 @@ class Cleaner:
         sub = self.infos[self.infos["total_messages"] > self.min]
         sub = sub[sub["total_messages"] <= self.max]
 
+        if self.only_empty_msgs==True:
+            sub = sub[sub["conversations_lens"] == "[]"]
+
         save_every = len(sub)//200 # to save every 0.5%
         save_every = max(1, save_every)
 
@@ -541,9 +564,9 @@ class Cleaner:
         plt.savefig(self.plots_folder+"line_numberpost_per_thread.pdf", bbox_inches='tight', pad_inches=0)
         plt.close()
 
-def main(url, min_l, max_l, conversations, cache, threads, plots):
+def main(url, min_l, max_l, conversations, cache, threads, plots, only_empty_msgs):
 
-    cleaner = Cleaner(url, min_l, max_l, conversations, cache, threads)
+    cleaner = Cleaner(url, min_l, max_l, conversations, cache, threads, only_empty_msgs)
     cleaner.load_infos()
 
     if plots:
@@ -562,7 +585,8 @@ if __name__ == "__main__":
     ap.add_argument("-ca", "--cache", required=False, action="store_true", help="If present, cache file will be created and used")
     ap.add_argument("-t", "--threads", required=False, type=int, help="Total of threads to create", default=1)
     ap.add_argument("-p", "--plots", required=False, action="store_true", help="If present, the plots will be generated. No processing is done")
+    ap.add_argument("-oem", "--only_empty_msgs", required=False, action="store_true", help="Only process threads where conversations_lens=='[]'")
 
     args = vars(ap.parse_args())
 
-    main(args['url'], args['min'], args['max'], args['conversations'], args['cache'], args['threads'], args['plots'])
+    main(args['url'], args['min'], args['max'], args['conversations'], args['cache'], args['threads'], args['plots'], args['only_empty_msgs'])
