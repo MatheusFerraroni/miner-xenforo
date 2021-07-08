@@ -463,8 +463,9 @@ class Cleaner:
 
         threads_running = []
         for i in range(len(sub)):
-            print("{}/{} = {}%".format(i, len(sub), round((i/float(len(sub)))*100,1) ) )#, end='\r')
             th = sub.iloc[i]
+            print("id={}\t{}/{} = {}%".format( th.id, i+1, len(sub), round((i/float(len(sub)))*100,1) ) )#, end='\r')
+
 
             x = threading.Thread(target=self.do_process, args=(th,))
             threads_running.append(x)
@@ -480,6 +481,7 @@ class Cleaner:
             if i%save_every==0:
                 self.save_infos()
 
+        print("Main loop complete. Waiting for final threads")
         for x in threads_running:
             x.join()
 
