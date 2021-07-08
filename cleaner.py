@@ -9,12 +9,11 @@ import pandas as pd
 import threading
 import time
 import numpy as np
-
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as path_effects
-
 import nltk
+import datetime
 
 class Cleaner:
 
@@ -239,7 +238,7 @@ class Cleaner:
         try:
             return self.cache_identify_conversations[msg_id] # cache mechanism
         except:
-            
+
             msg = BeautifulSoup(msg, features="lxml")
 
             quotes = msg.find_all("blockquote")
@@ -250,7 +249,7 @@ class Cleaner:
                 if title!=None:
                     try:
                         answering = title.a['data-content-selector']
-                    except: # member is banned
+                    except: # member is deactivated
                         continue
                     insert = self.tags['answering'].format(answering)
 
@@ -296,7 +295,7 @@ class Cleaner:
             return start, answering
 
     def mount_conversation(self, orig, dat, index_message):
-        new_orig = orig.copy()
+        new_orig = orig
         new_orig['parent'] = None
         to_identify = [new_orig]
         results = []
@@ -313,7 +312,7 @@ class Cleaner:
                     check_repeated = post
                     can_continue = True
                     while check_repeated!=None:
-                        if c['to']=="#"+check_repeated['official_id']: # this should be replaced to just check if the next message was posted after
+                        if c['to']=="#"+check_repeated['official_id']:
                             can_continue = False
                             break
                         check_repeated = check_repeated['parent']
@@ -323,8 +322,10 @@ class Cleaner:
 
                     idx = index_message[c['to']]
                     next_message = dat['messages'][idx]
-                    next_message = next_message.copy()
-                    next_message["parent"] = post.copy()
+                    if post['isodate'] < next_message['isodate'] or post['official_id']==next_message['official_id']:
+                        continue
+                    next_message = next_message
+                    next_message["parent"] = post
                     to_identify.append(next_message)
                 except:
                     continue
@@ -366,6 +367,10 @@ class Cleaner:
             for i in range(len(dat['messages'])):
                 idd = "#{}".format(dat['messages'][i]['official_id'])
                 index_message[idd] = i
+
+                isodate = dat['messages'][i]['creation']
+                isodate = isodate[0:22]+":"+isodate[22:]
+                dat['messages'][i]['isodate'] = datetime.datetime.fromisoformat(isodate)
 
             tokens_lens = []
             for i in range(0, len(dat['messages']), 1):
