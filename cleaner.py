@@ -91,9 +91,7 @@ class Cleaner:
                 self.infos = pd.read_csv(self.clear_cache_file, sep="\t")
                 print("Cache files loaded")
                 load_all = False
-        
-        
-        
+
         if load_all:
             print("Reading threads from {}".format(self.threads_folder))
             files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(self.threads_folder) for f in filenames if os.path.splitext(f)[1] == '.json']
@@ -279,7 +277,13 @@ class Cleaner:
                     if len(answering)!=type_writing:
                         answering[type_writing]['contents'].append(contents[i])
                     else:
-                        answering.append({'contents':[], 'to': contents[i].string})
+                        can_add = True
+                        for ik in range(len(answering)):
+                            if answering[ik]['to']==contents[i].string:
+                                can_add = False
+                                break
+                        if can_add:
+                            answering.append({'contents':[], 'to': contents[i].string})
 
             for a in answering:
                 insert = soup.new_tag('div')
