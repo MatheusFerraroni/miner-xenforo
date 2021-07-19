@@ -340,7 +340,7 @@ class Cleaner:
 
 
 
-            with open(self.result_folder+"{}.txt".format(th['id']), 'w') as f:
+            with open(self.result_folder+"{}.tsv".format(th['id']), 'w') as f:
                 for i in range(0, len(dat['messages']), 1):
                     txt = ''
                     if i>0:
@@ -362,7 +362,7 @@ class Cleaner:
                         conversations_lens.append(len(c))
                         counter_conversation += 1
 
-                        with open(self.result_folder+"{}_{}.txt".format(th['id'], counter_conversation), 'w') as f:
+                        with open(self.result_folder+"{}_{}.tsv".format(th['id'], counter_conversation), 'w') as f:
                             txt = ''
                             for ii in range(len(c)):
                                 if ii>0:
