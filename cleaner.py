@@ -230,133 +230,85 @@ class Cleaner:
         res = post_bs.text
         res = re.sub(r'\n', ' ', res)
         res = re.sub(r' +', ' ', res)
+        res = re.sub(u"\u200b", ' ', res)
+        res = re.sub(u'\xa0', ' ', res)
         return res
 
-    def identify_conversations(self, msg, msg_id):
+    def identify_conversations(self, msg, thread_id, msg_id):
         try:
-            return self.cache_identify_conversations[msg_id] # cache mechanism
+            return self.cache_identify_conversations[thread_id][msg_id] # cache mechanism
         except:
+            pass
+        
+        msg = BeautifulSoup(msg, features="lxml")
 
-            msg = BeautifulSoup(msg, features="lxml")
+        quotes = msg.find_all("blockquote", class_="bbCodeBlock--quote")
+        res = []
 
-            quotes = msg.find_all("blockquote")
+        for quote in quotes:
+            title = msg.find_all("div", class_="bbCodeBlock-title")
+            for t in title:
+                if t.a!=None:
+                    res.append(t.a['data-content-selector'])
 
-            soup = BeautifulSoup(features="lxml")
-            for quote in quotes:
-                title = quote.find("div", class_="bbCodeBlock-title")
-                if title!=None:
-                    try:
-                        answering = title.a['data-content-selector']
-                    except: # member is deactivated
-                        continue
-                    insert = self.tags['answering'].format(answering)
+        res = list(set(res))
+        res.sort()
+        
+        self.cache_identify_conversations[thread_id][msg_id] = res
+        return res
 
-                    insert = soup.new_tag('answering')
-                    insert.string = answering
-                    quote.insert_after(insert)
-                    quote.extract()
+    def mount_conversation(self, thread_id, orig, dat, index_message, res_final):
+        try:
+            index_message["#"+orig['official_id']]
+        except:
+            return res_final
 
+        cs = self.identify_conversations(orig['message'], thread_id, orig['official_id'])
 
-            contents = msg.find('div', class_="bbWrapper").contents
-
-            free_writing = []
-            answering = []
-
-            type_writing = None
-            for i in range((len(contents))):
-
-                if(contents[i].name=='answering'):
-                    if type_writing == None:
-                        type_writing = 0
-                    else:
-                        type_writing += 1
-
-                if type_writing == None:
-                    free_writing.append(contents[i])
-                else:
-                    if len(answering)!=type_writing:
-                        answering[type_writing]['contents'].append(contents[i])
-                    else:
-                        can_add = True
-                        for ik in range(len(answering)):
-                            if answering[ik]['to']==contents[i].string:
-                                can_add = False
-                                break
-                        if can_add:
-                            answering.append({'contents':[], 'to': contents[i].string})
-
-            for a in answering:
-                insert = soup.new_tag('div')
-                for tag in a['contents']:
-                    insert.append(tag)
-                a['contents'] = insert
-
-            start = soup.new_tag('div')
-            for tag in free_writing:
-                start.append(tag)
-
-            self.cache_identify_conversations[msg_id] = (start, answering)
-            return start, answering
-
-    def mount_conversation(self, orig, dat, index_message):
-        new_orig = orig
-        new_orig['parent'] = None
-        to_identify = [new_orig]
-        results = []
-        ignore_ids = []
-
-        while len(to_identify)>0:
-            post = to_identify.pop()
-
-            s, cs = self.identify_conversations(post['message'], post['official_id'])
-
-
-            for c in cs:
+        try:
+            orig['parent']
+        except:
+            orig['parent'] = None
+        
+        for c in cs:
+            
+            check_repeated = orig
+            can_continue = True
+            while check_repeated!=None:
+                if c=="#"+check_repeated['official_id']:
+                    can_continue = False
+                    break
+                check_repeated = check_repeated['parent']
+            
+            if can_continue:
                 try:
-                    check_repeated = post
-                    can_continue = True
-                    while check_repeated!=None:
-                        if c['to']=="#"+check_repeated['official_id']:
-                            can_continue = False
-                            break
-                        check_repeated = check_repeated['parent']
-
-                    if not can_continue:
-                        continue
-
-                    idx = index_message[c['to']]
+                    idx = index_message[c]
                     next_message = dat['messages'][idx]
-                    if post['isodate'] < next_message['isodate'] or post['official_id']==next_message['official_id']:
-                        continue
-                    next_message = next_message
-                    next_message["parent"] = post
-                    to_identify.append(next_message)
                 except:
                     continue
+                if next_message['isodate']<orig['isodate']: # avoid timetravel response
+                    next_message['parent'] = orig
+                    res_final = self.mount_conversation(thread_id, next_message, dat, index_message, res_final)
 
+        if len(cs)==0:
+            r = []
+            while orig['parent']!=None:
+                idx = index_message["#"+orig['official_id']]
+                r.append(dat['messages'][idx])
+                orig = orig['parent']
 
-            if len(cs)==0:
-                r = []
-                while post['parent']!=None:
-                    idx = index_message["#"+post['official_id']]
-                    idx = dat['messages'][idx]
+            idx = index_message["#"+orig['official_id']]
+            r.append(dat['messages'][idx])
 
-                    r.append(idx)
+            if len(r)>1:
+                res_final.append(r)
 
-                    post = post['parent']
+        return res_final
 
-                idx = index_message["#"+post['official_id']]
-                idx = dat['messages'][idx]
-                r.append(idx)
-                r = r[::-1]
-                if len(r)>1:
-                    results.append(r)
-
-        return results
 
     def to_single_line(self, s):
-
-        return s.replace("\r", " ").replace("\n", " ")
+        s = s.replace("\r", " ")
+        return s.replace("\n", " ")
 
     def do_process(self, th):
         try:
@@ -400,11 +352,11 @@ class Cleaner:
             conversations_lens = []
             counter_conversation = -1
             if self.conversations:
-
+                self.cache_identify_conversations[th['id']] = {}
                 for i in range(len(dat['messages'])-1, -1, -1):
                     post = dat['messages'][i]
 
-                    convs = self.mount_conversation(post, dat, index_message) # identify who this post is replying and which part
+                    convs = self.mount_conversation(th['id'], post, dat, index_message, []) # identify who this post is replying and which part
 
                     for c in convs:
                         conversations_lens.append(len(c))
@@ -424,9 +376,10 @@ class Cleaner:
                     for conv in convs:
                         for m in conv:
                             try:
-                                del( index_message[m['official_id']] )
+                                del( index_message["#"+m['official_id']] )
                             except:
                                 continue
+                self.cache_identify_conversations[th['id']] = {}
 
             self.set_infos(th, "tokens_lens", tokens_lens)
             self.set_infos(th, "conversations_lens", conversations_lens)
