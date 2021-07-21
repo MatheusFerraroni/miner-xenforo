@@ -249,7 +249,10 @@ class Cleaner:
             title = msg.find_all("div", class_="bbCodeBlock-title")
             for t in title:
                 if t.a!=None:
-                    res.append(t.a['data-content-selector'])
+                    try:
+                        res.append(t.a['data-content-selector'])
+                    except:
+                        pass
 
         res = list(set(res))
         res.sort()
@@ -304,7 +307,6 @@ class Cleaner:
                 res_final.append(r)
 
         return res_final
-
 
     def to_single_line(self, s):
         s = s.replace("\r", " ")
@@ -413,7 +415,7 @@ class Cleaner:
         sub = sub[sub["total_messages"] <= self.max]
 
         if self.only_empty_msgs==True:
-            sub = sub[sub["conversations_lens"] == "[]"]
+            sub = sub[pd.isnull(sub["conversations_lens"])]
 
         save_every = len(sub)//200 # to save every 0.5%
         save_every = max(1, save_every)
