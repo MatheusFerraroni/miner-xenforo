@@ -551,7 +551,7 @@ if __name__ == "__main__":
     ap.add_argument("-ca", "--cache", required=False, action="store_true", help="If present, cache file will be created and used")
     ap.add_argument("-t", "--threads", required=False, type=int, help="Total of threads to create", default=1)
     ap.add_argument("-p", "--plots", required=False, action="store_true", help="If present, the plots will be generated. No processing is done")
-    ap.add_argument("-oem", "--only_empty_msgs", required=False, action="store_true", help="Only process threads where conversations_lens=='[]'")
+    ap.add_argument("-oem", "--only_empty_msgs", required=False, action="store_true", help="Only process threads where conversations_lens==nan")
 
     args = vars(ap.parse_args())
 

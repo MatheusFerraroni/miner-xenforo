@@ -400,7 +400,10 @@ class Manager(Base):
         while True:
             html = self.get_html(url)
 
-            res['total_pages'] = int(html.find("ul", class_="pageNav-main").find_all('li')[-1].text)
+            try:
+                res['total_pages'] = int(html.find("ul", class_="pageNav-main").find_all('li')[-1].text)
+            except:
+                res['total_pages'] = 1
 
             posts = html.find_all("div", class_="structItem-title")
 
