@@ -33,6 +33,9 @@ class Anonymizer:
         return self.config['users_ids'][uid]
 
     def start(self):
+        
+        files = os.listdir(self.clear_folder)
+
         for file in files:
             with open(self.clear_folder+file, 'r') as file_o:
                 content = file_o.read()
