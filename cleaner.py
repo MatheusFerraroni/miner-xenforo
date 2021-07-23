@@ -451,16 +451,11 @@ class Cleaner:
         sub = self.infos[self.infos["total_messages"] > self.min]
         sub = sub[sub["total_messages"] <= self.max]
 
-
         sns.set_theme(style="ticks")
 
         f, ax = plt.subplots(figsize=(7, 6))
-
         ax.set_yscale("log")
-
         box_plot = sns.boxplot(data=sub['total_messages'])
-
-        # box_plot.axes.axhline(sub['total_messages'].mean(), ls='--')
 
         median = sub['total_messages'].median()
         q1 = sub["total_messages"].quantile(0.25)
@@ -471,7 +466,6 @@ class Cleaner:
         upper = q3 + (1.5 * iqr)
         upper = max(x[x<upper])
         lower = min(x[x>lower])
-
 
         vals_show = []
         vals_show.append(q3)
@@ -499,8 +493,6 @@ class Cleaner:
                     path_effects.Stroke(linewidth=3, foreground="grey"),
                     path_effects.Normal(),
                 ])
-
-
         ax.yaxis.grid(True)
         box_plot.set(xticklabels=[])
         ax.set_xlabel("Number of threads")
@@ -512,21 +504,15 @@ class Cleaner:
 
 
 
-
         unique, counts = np.unique(sub['total_messages'], return_counts=True)
-
         sns.set_theme(style="ticks")
         fig, ax = plt.subplots(figsize=(7, 6))
-
         ax.set_yscale("log")
-
         line1, = ax.plot(counts, unique)
-
         ax.set_xlabel("Number of threads")
         ax.set_ylabel("Size of thread")
         ax.set_title("Number of posts per thread")
         ax.grid()
-
         plt.savefig(self.plots_folder+"line_numberpost_per_thread.pdf", bbox_inches='tight', pad_inches=0)
         plt.close()
 
