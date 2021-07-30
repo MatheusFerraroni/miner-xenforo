@@ -28,8 +28,6 @@ class Base:
         }
         logging.info("Class Base created")
 
-
-
     def warm_up(self):
         logging.info("Warming up Base with cache: {}".format(self.cache_pages))
         if self.cache_pages:
@@ -37,7 +35,6 @@ class Base:
             logging.info("Cache location: {}".format(self.cache_html_location))
             if not os.path.exists(self.cache_html_location): # create config folder
                 os.makedirs(self.cache_html_location)
-
 
     def get_html_protected(self, url): # get html with cache
         logging.info("Will request URL: {}".format(url))
@@ -702,15 +699,12 @@ class Manager(Base):
                         url = urllib.parse.urljoin(self.base_url, url)
                         page += 1
                     else:
-                        thread['status'] = "complete"
                         break
 
 
 
             except Exception as e:
                 print(e)
-                thread['error'] = str(e)
-                thread['status'] = "error"
                 logging.error("ERROREXCEPTION (1) {} {} {}".format(str(thread['id']), str(e), url))
 
 
@@ -718,6 +712,7 @@ class Manager(Base):
             with open(thread_file, 'r') as f:
                 thread = json.loads(f.read())
 
+            thread['status'] = "complete"
             thread['total_pages'] = page
             thread['total_posts'] = len(thread['messages'])
             thread['last_update'] = datetime.now()
@@ -730,8 +725,6 @@ class Manager(Base):
         except Exception as e:
             print(e)
             logging.error("ERROREXCEPTION (2) {} {}".format(str(thread), str(e)))
-
-
 
     def reload_posts(self):
         logging.info("Starting to reload posts")
