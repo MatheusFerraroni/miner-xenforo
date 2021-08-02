@@ -74,7 +74,9 @@ class Base:
                 return self.get_html_protected(url)
             except Exception as e:
                 logging.error("ERROR getting HTML: {}".format(e))
-                time.sleep(limit_error*30) # sleep for 0, 30, 60...
+                time.sleep(5+limit_error*30) # sleep for 5, 35, 65...
+        
+        raise Exception("Failed to load url after retries. {}".format(url))
 
 
 class Manager(Base):
@@ -694,11 +696,14 @@ class Manager(Base):
                         thread = None
 
 
+                    must_break = True
                     if len(html.find_all("a", class_="pageNav-jump--next"))>0:
                         url = html.find("a", class_="pageNav-jump--next")['href']
                         url = urllib.parse.urljoin(self.base_url, url)
                         page += 1
-                    else:
+                        must_break = False
+                    
+                    if must_break:
                         break
 
 
