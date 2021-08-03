@@ -639,8 +639,16 @@ class Manager(Base):
             posts_to_add = []
             counter_page_to_save = 0
             save_every_x_page = 40
+
+            visited_urls = []
             try:
                 while True:
+
+                    if url in visited_urls:
+                        logging.warning("Trying to revisit URL {}".format(url))
+                        break
+                    
+                    visited_urls.append(url)
                     html = self.get_html(url)
 
                     for message in html.find_all('article', class_="message--post"):
