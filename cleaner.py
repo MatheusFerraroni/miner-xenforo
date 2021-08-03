@@ -229,6 +229,7 @@ class Cleaner:
 
         res = post_bs.text
         res = re.sub(r'\n', ' ', res)
+        res = re.sub(r'\t', ' ', res)
         res = re.sub(r' +', ' ', res)
         res = re.sub(u"\u200b", ' ', res)
         res = re.sub(u'\xa0', ' ', res)
