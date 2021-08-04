@@ -651,6 +651,9 @@ class Manager(Base):
                     visited_urls.append(url)
                     html = self.get_html(url)
 
+                    if html==None:
+                        break
+
                     for message in html.find_all('article', class_="message--post"):
 
 
