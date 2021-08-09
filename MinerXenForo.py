@@ -63,8 +63,12 @@ class Base:
             f.write(content)
             f.close()
 
-        res = BeautifulSoup(content, "html.parser")
-        return res
+        try:
+            res = BeautifulSoup(content, "html.parser")
+            return res
+        except:
+            logging.error("ERROR parsing url with bs4: {}".format(url))
+            return None
 
     def get_html(self, url): # retry controll from get html
         limit_error = 0
@@ -76,7 +80,7 @@ class Base:
                 logging.error("ERROR getting HTML: {}".format(e))
                 time.sleep(5+limit_error*30) # sleep for 5, 35, 65...
         
-        raise Exception("Failed to load url after retries. {}".format(url))
+        return None
 
 
 class Manager(Base):
@@ -196,6 +200,9 @@ class Manager(Base):
         logging.info("Requesting categories from {}".format(self.base_url))
 
         html = self.get_html(self.base_url)
+        if html==None:
+            logging.error("html returned None. Operation stopped. (1) {}".format(self.base_url))
+            return
         div_categories = html.body.find("div", class_="p-body-pageContent").find_all("div", class_="block--category")
 
         categories = []
@@ -398,6 +405,9 @@ class Manager(Base):
 
         while True:
             html = self.get_html(url)
+            if html==None:
+                logging.error("html returned None. Operation stopped. (2) {}".format(url))
+                break
 
             try:
                 res['total_pages'] = int(html.find("ul", class_="pageNav-main").find_all('li')[-1].text)
@@ -570,6 +580,9 @@ class Manager(Base):
             logging.info("Checking url: {}".format(url_with_page))
 
             html = self.get_html(url_with_page)
+            if html==None:
+                logging.error("html returned None. Operation stopped. (3) {}".format(url_with_page))
+                break
 
             for message in html.find_all('article', class_="message--post"):
 
@@ -650,6 +663,9 @@ class Manager(Base):
                     
                     visited_urls.append(url)
                     html = self.get_html(url)
+                    if html==None:
+                        logging.error("html returned None. Operation stopped. (4) {}".format(url))
+                        break
 
                     if html==None:
                         break
@@ -691,7 +707,9 @@ class Manager(Base):
 
                     counter_page_to_save += 1
 
-                    if counter_page_to_save%save_every_x_page==0:
+                    has_next = len(html.find_all("a", class_="pageNav-jump--next"))>0
+
+                    if counter_page_to_save%save_every_x_page==0 or not has_next:
                         counter_page_to_save = 0
                         with open(thread_file, 'r') as f:
                             thread = json.loads(f.read())
@@ -708,7 +726,7 @@ class Manager(Base):
 
 
                     must_break = True
-                    if len(html.find_all("a", class_="pageNav-jump--next"))>0:
+                    if has_next:
                         url = html.find("a", class_="pageNav-jump--next")['href']
                         url = urllib.parse.urljoin(self.base_url, url)
                         page += 1
