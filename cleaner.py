@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patheffects as path_effects
 import nltk
 import datetime
+import logging
+import traceback
 
 class Cleaner:
 
@@ -174,10 +176,13 @@ class Cleaner:
 
         for img in post_bs.find_all('img'): # detecta images
             overwrite_with = ""
-            if 'bbImage' in img['class']:
-                overwrite_with = self.tags['external_image']
-            elif 'smilie' in img['class']:
-                overwrite_with = self.tags['emoji'].format(img['alt'])
+            if img.has_attr('class'):
+                if 'bbImage' in img['class']:
+                    overwrite_with = self.tags['external_image']
+                elif 'smilie' in img['class']:
+                    overwrite_with = self.tags['emoji'].format(img['alt'])
+                else:
+                    overwrite_with = self.tags['img_unknown']
             else:
                 overwrite_with = self.tags['img_unknown']
 
@@ -314,6 +319,7 @@ class Cleaner:
         return s.replace("\n", " ")
 
     def do_process(self, th):
+        logging.info("Starting thread {}".format(th.id))
         try:
             dat = None
             with open(self.threads_folder+"{}.json".format(th['id']), 'r') as f:
@@ -387,9 +393,7 @@ class Cleaner:
             self.set_infos(th, "tokens_lens", tokens_lens)
             self.set_infos(th, "conversations_lens", conversations_lens)
         except Exception as e:
-            print("\n\n")
-            print(e)
-            print("\n\n")
+            logging.error("EXCEPTION thread.id={}, {}".format(th.id, traceback.format_exc().replace("\n","")))
 
     def set_infos(self, th, key, value):
         self.lock_alter_infos.acquire()
@@ -411,12 +415,15 @@ class Cleaner:
         self.lock_alter_infos.release()
 
     def process(self):
+        logging.info("Starting process")
 
         sub = self.infos[self.infos["total_messages"] > self.min]
         sub = sub[sub["total_messages"] <= self.max]
 
         if self.only_empty_msgs==True:
             sub = sub[pd.isnull(sub["conversations_lens"])]
+
+        logging.info("Total threads to clear: {}".format(len(sub)))
 
         save_every = len(sub)//200 # to save every 0.5%
         save_every = max(1, save_every)
@@ -518,6 +525,13 @@ class Cleaner:
         plt.close()
 
 def main(url, min_l, max_l, conversations, cache, threads, plots, only_empty_msgs):
+    args = locals()
+
+    FORMAT = '%(asctime)s %(levelname)s %(funcName)s %(threadName)s - \t %(message)s'
+    logging.basicConfig(filename='log_cleaner.log', filemode='a', format=FORMAT, level=logging.INFO)
+
+    logging.info('Starting')
+    logging.info(str(args))
 
     cleaner = Cleaner(url, min_l, max_l, conversations, cache, threads, only_empty_msgs)
     cleaner.load_infos()

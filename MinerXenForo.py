@@ -738,8 +738,8 @@ class Manager(Base):
 
 
             except Exception as e:
-                print(e)
-                logging.error("ERROREXCEPTION (1) {} {} {}".format(str(thread['id']), str(e), url))
+                # print(e)
+                logging.error("ERROREXCEPTION (1) {} {} {}".format(str(e), url))
 
 
 
@@ -755,9 +755,8 @@ class Manager(Base):
             posts_to_add = []
 
             self.write_json(thread_file, thread)
-            thread = None
         except Exception as e:
-            print(e)
+            # print(e)
             logging.error("ERROREXCEPTION (2) {} {}".format(str(thread), str(e)))
 
     def reload_posts(self):
