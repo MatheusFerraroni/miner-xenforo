@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 from urllib.parse import urlparse
 
@@ -9,20 +10,16 @@ class Anonymizer:
         self.domain = urlparse(self.base_url).netloc
 
         self.config_folder     = "./config/{}/".format(self.domain) # must exist
-        self.clear_folder      = self.config_folder+"clear_threads/" # must exist
-        self.result_folder     = self.config_folder+"clear_threads_anonymous/" # must be created
+        self.folder      = self.config_folder+"threads/" # must exist
 
         self.config = {'users_ids':{}, 'last_id': 0}
 
         if not os.path.exists(self.config_folder):
             raise Exception("Config folder not found: {}".format(self.config_folder))
 
-        if not os.path.exists(self.clear_folder): # create config folder
-            raise Exception("Config folder not found: {}".format(self.clear_folder))
+        if not os.path.exists(self.folder): # create config folder
+            raise Exception("Config folder not found: {}".format(self.folder))
 
-        if not os.path.exists(self.result_folder): # create config folder
-            print("Creating folder: {}".format(self.result_folder))
-            os.makedirs(self.result_folder)
 
     def anonymizer_user(self, uid):
         try:
@@ -33,25 +30,26 @@ class Anonymizer:
         return self.config['users_ids'][uid]
 
     def start(self):
-        
-        files = os.listdir(self.clear_folder)
+        files = os.listdir(self.folder)
 
         for file in files:
-            with open(self.clear_folder+file, 'r') as file_o:
+            with open(self.folder+file, 'r') as file_o:
                 content = file_o.read()
-            
-            content = content.split("\n")
-            content = [c.split("\t") for c in content]
-            content = [[c[0], self.anonymizer_user(c[1]) , c[2]] for c in content]
 
-            content = ["\t".join(c) for c in content]
-            content = "\n".join(content)
+            content = json.loads(content)
 
-            with open(self.result_folder+file, 'w') as file_o:
-                file_o.write(content)
+            content['member_name'] = self.anonymizer_user(content['member_href'])
+            content['member_href'] = ''
+
+            for i in range(len(content['messages'])):
+                content['messages'][i]['user_name'] = self.anonymizer_user(content['messages'][i]['user_href'])
+                content['messages'][i]['user_href'] = ''
+
+            with open(self.folder+file, 'w') as file_o:
+                file_o.write(json.dumps(content, indent=2))
+
 
 def main(url):
-
     anonymizer = Anonymizer(url)
     anonymizer.start()
 
