@@ -141,6 +141,10 @@ class Cleaner:
         for el in post_bs.find_all('div', class_="kl_amdp_merge_message"): # remove mensagem de post duplo
             el.extract()
 
+            
+        for el in post_bs.find_all('br'): # remove mensagem de post duplo
+            el.extract()
+
         iframes = post_bs.find_all('iframe')
         for iframe in iframes: # detecta iframes
             domain = urlparse(iframe['src']).netloc
@@ -233,8 +237,10 @@ class Cleaner:
             spoiler.extract()
 
         res = post_bs.text
-        res = re.sub(r'\n', ' ', res)
-        res = re.sub(r'\t', ' ', res)
+        res = res.strip()
+        res = res.replace("\n", " ")
+        res = res.replace("\r", " ")
+        res = res.replace("\t", " ")
         res = re.sub(r' +', ' ', res)
         res = re.sub(u"\u200b", ' ', res)
         res = re.sub(u'\xa0', ' ', res)
@@ -354,7 +360,7 @@ class Cleaner:
                     txt = ''
                     if i>0:
                         txt += "\n"
-                    txt += "{}\t{}\t{}".format(dat['messages'][i]['creation'], dat['messages'][i]['user_href'], dat['messages'][i]['message_clear'])
+                    txt += "{}\t{}\t{}".format(dat['messages'][i]['creation'], dat['messages'][i]['user_name'], dat['messages'][i]['message_clear'])
                     f.write(txt)
 
 
@@ -377,7 +383,7 @@ class Cleaner:
                                 if ii>0:
                                     txt += "\n"
                                 cc = c[ii]
-                                txt += "{}\t{}\t{}".format(cc['creation'], cc['user_href'], cc['message_clear'])
+                                txt += "{}\t{}\t{}".format(cc['creation'], cc['user_name'], cc['message_clear'])
 
                             f.write(txt)
 
