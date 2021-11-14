@@ -107,7 +107,11 @@ class Cleaner:
             updates = []
             for f in files:
                 with open(f, "r") as f:
-                    dat = json.loads(f.read())
+                    try:
+                        dat = json.loads(f.read())
+                    except:
+                        print("File {} malformed. Skipped.".format(f))
+                        continue
                     dats.append({
                         "id": dat['id'],
                         "category": dat['category'],
@@ -532,7 +536,7 @@ class Cleaner:
 
 def main(url, min_l, max_l, conversations, cache, threads, plots, only_empty_msgs):
     args = locals()
-
+    print("Starting")
     FORMAT = '%(asctime)s %(levelname)s %(funcName)s %(threadName)s - \t %(message)s'
     logging.basicConfig(filename='log_cleaner.log', filemode='a', format=FORMAT, level=logging.INFO)
 
