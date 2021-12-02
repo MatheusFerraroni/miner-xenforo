@@ -11,6 +11,7 @@ class Anonymizer:
 
         self.config_folder     = "./config/{}/".format(self.domain) # must exist
         self.folder      = self.config_folder+"threads/" # must exist
+        self.folder_cat  = self.config_folder+"categories_threads/" # must exist
 
         self.config = {'users_ids':{}, 'last_id': 0}
 
@@ -30,6 +31,28 @@ class Anonymizer:
         return self.config['users_ids'][uid]
 
     def start(self):
+
+        files = os.listdir(self.folder_cat)
+
+        for file in files:
+            with open(self.folder_cat+file, 'r') as file_o:
+                content = file_o.read()
+
+            content = json.loads(content)
+
+            for i in range(len(content['threads'])):
+
+                content['threads'][i]['member_href'] = None
+                content['threads'][i]['member_name'] = None
+
+
+
+            with open(self.folder_cat+file, 'w') as file_o:
+                file_o.write(json.dumps(content, indent=2))
+
+
+
+
         files = os.listdir(self.folder)
 
         for file in files:
